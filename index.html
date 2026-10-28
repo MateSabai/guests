@@ -86,7 +86,7 @@ a{color:var(--navy)}
 .hero .top{position:absolute;left:0;right:0;top:0;padding:26px 18px 0;text-align:center}
 .hero .top .logo{height:34px;color:#fff;filter:drop-shadow(0 2px 10px rgba(0,0,0,.25))}
 .hero .in{position:relative;width:100%;max-width:720px;margin:0 auto;padding:0 22px 44px}
-.hero .eyebrow{color:var(--gold2)}
+.hero .eyebrow{color:var(--gold2);text-shadow:0 1px 8px rgba(0,0,0,.45)}
 .hero h1{font:400 44px/1.04 var(--serif);margin:12px 0 10px;letter-spacing:-.01em}
 .hero h1 em{font-style:italic}
 .hero .sub{font:400 17px/1.5 var(--sans);opacity:.92;margin:0}
@@ -112,7 +112,7 @@ a{color:var(--navy)}
 .logobtn .logo{height:15px}
 .iconbtn{flex:0 0 auto;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--paper);color:var(--navy);display:inline-flex;align-items:center;justify-content:center;padding:0;transition:border-color .2s,transform .12s}
 .iconbtn:hover{border-color:var(--gold)}
-.voyage{position:relative;flex:1;height:38px;min-width:120px;margin:0 10px}
+.voyage{position:relative;flex:1;height:38px;min-width:120px;margin:0 10px 0 38px}
 .voyage .route{position:absolute;left:0;right:0;top:27px;border-top:1.5px dotted var(--line2)}
 .voyage .wake{position:absolute;left:0;top:26px;height:3px;width:0;border-radius:3px;background:linear-gradient(90deg,rgba(174,135,82,0),var(--gold2));transition:width .9s cubic-bezier(.3,.7,.3,1)}
 .voyage .wp{position:absolute;top:22.5px;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;background:var(--bg);border:1.5px solid var(--line2);padding:0;transition:background .3s,border-color .3s,transform .2s}
@@ -123,7 +123,7 @@ a{color:var(--navy)}
 .voyage .port{position:absolute;right:-10px;top:19px;color:var(--navy);line-height:0;background:var(--bg);padding:0 2px}
 .voyage .vb{position:absolute;top:2px;left:0;width:54px;height:21px;margin-left:-27px;transition:left .9s cubic-bezier(.3,.7,.3,1);z-index:2}
 .voyage .vb .outline{width:100%;height:100%;color:var(--navy);animation:bob 3s ease-in-out infinite}
-@media (max-width:420px){.logobtn{display:none}.voyage{margin:0 6px}.voyage .vb{width:44px;height:17px;margin-left:-22px;top:6px}}
+@media (max-width:420px){.logobtn{display:none}.voyage{margin:0 6px 0 26px}.voyage .vb{width:44px;height:17px;margin-left:-22px;top:6px}}
 
 /* stage and cards */
 .stage{position:relative;max-width:720px;margin:0 auto;padding:30px 16px 60px}
@@ -351,7 +351,7 @@ a{color:var(--navy)}
 .sendov .wk{position:absolute;top:58%;left:0;right:0;height:30px;overflow:hidden}
 .sendov .wk i{position:absolute;top:6px;height:1px;width:90px;background:rgba(255,255,255,.35);animation:wk 1.8s linear infinite}
 @keyframes wk{from{transform:translateX(60vw);opacity:0}30%{opacity:1}to{transform:translateX(-20vw);opacity:0}}
-.sendov p{position:absolute;top:calc(58% + 40px);left:0;right:0;text-align:center;font:italic 400 24px/1.3 var(--serif);margin:0;opacity:.95}
+.sendov p{position:absolute;top:calc(58% + 78px);left:0;right:0;text-align:center;font:italic 400 24px/1.3 var(--serif);margin:0;opacity:.95}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:13px 20px;border-radius:14px;font-size:15px;box-shadow:0 18px 40px -16px rgba(0,0,0,.5);z-index:70;max-width:calc(100% - 32px);text-align:center;animation:rise .35s both}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
 
@@ -1260,9 +1260,10 @@ var SABAI_API = "https://script.google.com/macros/s/AKfycbxaN1JXE2Yv1DG59BWG-2mO
       $('print').onclick = function () { window.print(); };
       var br = $('brief');
       if (br) br.onclick = function () {
-        var text = briefPrompt(), w = window.open(B.briefUrl || 'about:blank', '_blank');
-        (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { toast('Copied. Paste it into the Charter Brief.'); }, function () { toast('Could not copy. Use the text below.'); });
-        if (!w) location.href = B.briefUrl;
+        var text = briefPrompt();
+        function open() { var w = window.open(B.briefUrl || 'about:blank', '_blank'); if (!w && B.briefUrl) location.href = B.briefUrl; }
+        (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { toast('Copied. Paste it into the Charter Brief.'); open(); },
+          function () { var d = document.querySelector('details'); if (d) d.open = true; toast('Could not copy. Select the text below and copy it.'); });
       };
     }
     draw();
