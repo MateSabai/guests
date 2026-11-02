@@ -442,6 +442,9 @@ pre.prompt{white-space:pre-wrap;word-wrap:break-word;background:var(--paper);bor
 .form2{display:grid;gap:14px;grid-template-columns:1fr}
 .form2 .full{grid-column:1/-1}
 @media (min-width:720px){.form2{grid-template-columns:1fr 1fr}}
+.sheetqr{display:flex;gap:14px;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.sheetqr .qr{width:150px;height:150px;flex:none}
+.sheetqr p{margin:0}
 .qr{width:180px;height:180px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px}
 .qr img,.qr canvas{width:100%;height:100%;image-rendering:pixelated}
 .chrow{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
@@ -520,6 +523,13 @@ var SABAI_API = "https://script.google.com/macros/s/AKfycbxaN1JXE2Yv1DG59BWG-2mO
   function $(id) { return document.getElementById(id); }
   function each(sel, fn, root) { Array.prototype.forEach.call((root || document).querySelectorAll(sel), fn); }
   function clone(o) { return JSON.parse(JSON.stringify(o || {})); }
+  // A QR code for a link (2 Nov 2026: shared by the New charter page and the main contact's share sheets).
+  function qrInto(text, box) {
+    if (!box || !text) return;
+    var run = function () { try { var q = window.qrcode(0, 'M'); q.addData(text); q.make(); box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) { box.textContent = 'QR not available'; } };
+    if (window.qrcode) return run();
+    var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'; s.onload = run; s.onerror = function () { box.textContent = 'QR not available'; }; document.head.appendChild(s);
+  }
   function paint(html) { app.innerHTML = html; window.scrollTo(0, 0); }
   function logo(cls) { return '<span class="logo ' + (cls || '') + '" role="img" aria-label="SABAI">' + LOGO + '</span>'; }
   function outline(cls) { return '<span class="outline ' + (cls || '') + '" aria-hidden="true"></span>'; }
@@ -1226,7 +1236,7 @@ var SABAI_API = "https://script.google.com/macros/s/AKfycbxaN1JXE2Yv1DG59BWG-2mO
         '<div class="sect"><p class="eyebrow">Step 1</p><h2>The party</h2>' +
         PP.map(function (p) { return '<button type="button" class="pcard" data-part="' + p.id + '"><img src="' + (IMG[p.image] || '') + '" alt=""><span><span class="t">' + esc(p.title) + '</span><span class="d">' + esc(p.intro) + '</span>' + partyStatus() + '</span><span class="go">' + ic('right', 20) + '</span></button>'; }).join('') + '</div>' +
         '<div class="sect"><p class="eyebrow">Step 2</p><h2>Your guests</h2><p>' + sent + exp + ' sent. Each guest\'s name, adult or under 18, and allergies are needed; everything else is optional.</p>' +
-        (B.partyLink ? '<div class="plink"><p><b>One link for the whole party.</b> Share it in your group chat or by email. Each guest adds their own name and answers on their own page. You will see who has joined and who has sent their answers, but not the answers.</p>' +
+        (B.partyLink ? '<div class="plink"><p><b>One link for the whole party.</b> Share it in your group chat or by email, or let your guests scan its code from your screen. Each guest adds their own name and answers on their own page. You will see who has joined and who has sent their answers, but not the answers.</p>' +
           '<button type="button" class="btn ghost" id="sharePL">' + ic('share', 18) + 'Share the party link</button></div>' : '') +
         '<div id="glist">' + guests.map(guestCard).join('') + '</div>' + addForm() + '</div>' +
         lifeStrip() + '<div class="privacy">' + ic('shield', 16) + ' <b>Your answers are private.</b> Only SABAI\'s crew and the yacht\'s purser see them, and only to prepare for this charter. Photos are optional and are kept the same way. Answers and photos are deleted 30 days after the charter ends, unless a guest asks us to keep them for a future visit. Please do not put passport details here.</div>' +
@@ -1275,15 +1285,16 @@ var SABAI_API = "https://script.google.com/macros/s/AKfycbxaN1JXE2Yv1DG59BWG-2mO
       var fn = firstName(g.name);
       linkSheet('Send ' + fn + ' a link', 'This link is for ' + g.name + ' only. You will see here when they have sent their answers, but not the answers themselves.', g.link,
         'Hello ' + fn + ', SABAI\'s crew would like to know your preferences for ' + C.name + ' (' + fmtRange(C.starts, C.ends) + '). It takes about 10 minutes: ' + g.link,
-        function () { if (!g.shared) { g.shared = true; api('markShared', [{ c: T, gid: g.ref }]).then(function () {}, function () {}); } });
+        function () { if (!g.shared) { g.shared = true; api('markShared', [{ c: T, gid: g.ref }]).then(function () {}, function () {}); } },
+        'If ' + fn + ' is with you, they can scan this code with their phone camera instead.');
     }
     // The party link (29 Oct 2026): one link for everyone; each guest adds their own name.
     function partySheet() {
       linkSheet('Share the party link', 'Anyone with this link can add themselves to the guest list for ' + C.name + '. Each guest sees only their own answers. Please share it only with your party.', B.partyLink,
         'SABAI\'s crew would like to know everyone\'s preferences for ' + C.name + ' (' + fmtRange(C.starts, C.ends) + '). Please add your name and answer on your own page. It takes about 10 minutes: ' + B.partyLink,
-        function () {});
+        function () {}, 'When your guests are with you, they can scan this code with their phone camera.');
     }
-    function linkSheet(title, note, url, text, done) {
+    function linkSheet(title, note, url, text, done, scan) {
       var bg = document.createElement('div'); bg.className = 'sheet-bg';
       var sh = document.createElement('div'); sh.className = 'sheet'; sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-modal', 'true');
       sh.innerHTML = '<div class="grab"></div><h2>' + esc(title) + '</h2><p class="small" style="margin:0">' + esc(note) + '</p>' +
@@ -1291,8 +1302,10 @@ var SABAI_API = "https://script.google.com/macros/s/AKfycbxaN1JXE2Yv1DG59BWG-2mO
         (navigator.share ? '<button type="button" class="btn primary" data-s="share">' + ic('share', 18) + 'Share</button>' : '') +
         '<a class="btn ghost" data-s="wa" href="https://wa.me/?text=' + encodeURIComponent(text) + '" target="_blank" rel="noopener">' + ic('chat', 18) + 'WhatsApp</a>' +
         '<a class="btn ghost" data-s="mail" href="mailto:?subject=' + encodeURIComponent('SABAI guest preferences') + '&body=' + encodeURIComponent(text) + '">' + ic('mail', 18) + 'Email</a>' +
-        '<button type="button" class="btn ghost" data-s="copy">' + ic('copy', 18) + 'Copy the link</button></div>';
+        '<button type="button" class="btn ghost" data-s="copy">' + ic('copy', 18) + 'Copy the link</button></div>' +
+        (scan ? '<div class="sheetqr"><div class="qr" id="sheetqr" role="img" aria-label="QR code for the link"></div><p class="small">' + esc(scan) + '</p></div>' : '');
       document.body.appendChild(bg); document.body.appendChild(sh);
+      if (scan) qrInto(url, $('sheetqr'));
       var close = function () { bg.remove(); sh.remove(); };
       bg.onclick = close;
       function mark() { done(); setTimeout(function () { close(); home(); }, 300); }
@@ -1658,13 +1671,13 @@ var SABAI_API = "https://script.google.com/macros/s/AKfycbxaN1JXE2Yv1DG59BWG-2mO
           api('purgeCharter', [{ k: K, ref: ref }]).then(function (r) { toast('Deleted ' + r.cleared + ' answer sets.'); }, function (e) { alert(errText(e)); });
         };
       });
-      if (made) qr(made.guestLink, $('qrbox'));
+      if (made) { qr(made.guestLink, $('qrbox')); qr(made.partyLink, $('qrboxp')); }
     }
     function fld(id, label, type, ph, cls) { return '<div class="item ' + (cls || '') + '"><label for="f-' + id + '">' + esc(label) + '</label><input class="in-text" id="f-' + id + '" type="' + type + '" placeholder="' + esc(ph || '') + '"' + (type === 'number' ? ' min="1" max="30"' : '') + '></div>'; }
     function table() {
       return '<div class="tblw"><table class="tbl"><thead><tr><th>Charter</th><th>Dates</th><th>Guests</th><th>Links</th><th></th></tr></thead><tbody>' + list.map(function (c) {
         return '<tr><td><b>' + esc(c.name) + '</b><br><span class="muted">' + esc(c.ref) + (c.test ? ' \u00b7 test' : '') + '</span></td><td>' + esc(fmtRange(c.starts, c.ends)) + '</td><td>' + esc((c.sent || 0) + ' of ' + (c.expected || c.guests || 0) + ' sent') + '</td>' +
-          '<td><a href="' + esc(c.crewLink) + '" target="_blank" rel="noopener">Crew page</a><br><button type="button" class="linkbtn" data-qr="' + esc(c.ref) + '">Guest link and QR</button></td>' +
+          '<td><a href="' + esc(c.crewLink) + '" target="_blank" rel="noopener">Crew page</a><br><button type="button" class="linkbtn" data-qr="' + esc(c.ref) + '">Links and QR codes</button></td>' +
           '<td><button type="button" class="linkbtn" data-del="' + esc(c.ref) + '">Delete answers now</button></td></tr>';
       }).join('') + '</tbody></table></div>';
     }
@@ -1672,7 +1685,8 @@ var SABAI_API = "https://script.google.com/macros/s/AKfycbxaN1JXE2Yv1DG59BWG-2mO
       return '<div class="panel"><h2>' + esc(c.name) + '</h2><div class="gcard"><div class="chrow"><div class="qr" id="qrbox"></div><div style="flex:1;min-width:260px">' +
         '<p><b>Link for the main contact</b> (the broker or the guest who organises the party). Send it yourself by email or WhatsApp.</p><div class="linkbox">' + esc(c.guestLink) + '</div>' +
         '<div class="actions"><button type="button" class="btn ghost" id="cpg">' + ic('copy', 16) + 'Copy guest link</button><a class="btn ghost" href="' + esc(c.guestLink) + '" target="_blank" rel="noopener">Open it</a></div>' +
-        '<p><b>Party link</b> for everyone in the party: each guest adds their own name and answers on their own page. The main contact can share it from their page too.</p><div class="linkbox">' + esc(c.partyLink || '') + '</div>' +
+        '</div></div><div class="chrow" style="margin-top:18px"><div class="qr" id="qrboxp"></div><div style="flex:1;min-width:260px">' +
+        '<p><b>Party link</b> for everyone in the party: each guest adds their own name and answers on their own page. The main contact can share it from their page too, or show this code on their phone for the guests to scan.</p><div class="linkbox">' + esc(c.partyLink || '') + '</div>' +
         '<div class="actions"><button type="button" class="btn ghost" id="cpp">' + ic('copy', 16) + 'Copy party link</button></div>' +
         '<p><b>Crew page</b> for this charter (answers and briefs):</p><div class="linkbox">' + esc(c.crewLink) + '</div>' +
         '<div class="actions"><button type="button" class="btn ghost" id="cpc">' + ic('copy', 16) + 'Copy crew link</button><a class="btn ghost" href="' + esc(c.crewLink) + '" target="_blank" rel="noopener">Open it</a></div></div></div></div></div>';
@@ -1686,12 +1700,7 @@ var SABAI_API = "https://script.google.com/macros/s/AKfycbxaN1JXE2Yv1DG59BWG-2mO
       $('make').disabled = true;
       api('createCharter', [{ k: K, charter: f }]).then(function (c) { list.unshift(c); draw(c); window.scrollTo(0, 0); }, function (e) { $('make').disabled = false; $('err').textContent = errText(e); });
     }
-    function qr(text, box) {
-      if (!box) return;
-      var run = function () { try { var q = window.qrcode(0, 'M'); q.addData(text); q.make(); box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) { box.textContent = 'QR not available'; } };
-      if (window.qrcode) return run();
-      var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'; s.onload = run; s.onerror = function () { box.textContent = 'QR not available'; }; document.head.appendChild(s);
-    }
+    function qr(text, box) { qrInto(text, box); }
     draw();
     document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('#cpg')) copy($('cpg').closest('.gcard').querySelectorAll('.linkbox')[0].textContent); if (e.target.closest && e.target.closest('#cpc')) copy($('cpc').closest('.gcard').querySelectorAll('.linkbox')[2].textContent); if (e.target.closest && e.target.closest('#cpp')) copy($('cpp').closest('.gcard').querySelectorAll('.linkbox')[1].textContent); });
   }
